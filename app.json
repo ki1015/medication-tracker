@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "服薬記録",
+    "slug": "medication-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0f172a"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.medicationtracker.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f172a"
+      },
+      "package": "com.medicationtracker.app"
+    },
+    "plugins": [
+      "expo-asset"
+    ]
+  }
+}
