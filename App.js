@@ -3,15 +3,17 @@ import {
   StyleSheet,
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   Alert,
   ScrollView,
-  useWindowDimensions,
+  Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = '@medication_taken_dates';
+const LABEL_KEY = '@motivation_label';
 
 // 日付を YYYY-MM-DD に正規化（タイムゾーンはローカル）
 function dateKey(d) {
@@ -28,16 +30,9 @@ function todayStart() {
   return t;
 }
 
-// 115日分「飲んだ」の初期データ
+// 初期データは空（0日）
 function getInitialTakenDates() {
-  const keys = {};
-  const end = todayStart();
-  for (let i = 0; i < 115; i++) {
-    const d = new Date(end);
-    d.setDate(d.getDate() - i);
-    keys[dateKey(d)] = true;
-  }
-  return keys;
+  return {};
 }
 
 // ストリーク計算：今日から遡って連続で飲んだ日数
@@ -90,8 +85,15 @@ export default function App() {
   const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
   const [loaded, setLoaded] = useState(false);
+  const [motivationLabel, setMotivationLabel] = useState('孫と遊べる時間 13年と4ヶ月');
 
   const streak = calculateStreak(takenDates);
+  const todayKey = dateKey(todayStart());
+  const todayTaken = !!takenDates[todayKey];
+  const todayDisplay = (() => {
+    const d = todayStart();
+    return `${d.getMonth() + 1}月${d.getDate()}日`;
+  })();
 
   // 永続化：読み込み
   useEffect(() => {
@@ -102,6 +104,8 @@ export default function App() {
           const parsed = JSON.parse(raw);
           setTakenDates(parsed);
         }
+        const label = await AsyncStorage.getItem(LABEL_KEY);
+        if (label !== null) setMotivationLabel(label);
       } catch (e) {
         // 初回 or エラー時は初期データのまま
       }
@@ -120,6 +124,7 @@ export default function App() {
   const toggleDay = useCallback(
     (date) => {
       if (!date) return;
+      if (date > todayStart()) return;
       const key = dateKey(date);
       const next = { ...takenDates };
       if (next[key]) {
@@ -132,43 +137,46 @@ export default function App() {
     [takenDates, persistTaken]
   );
 
+  const CAL_START = { year: 2026, month: 0 };  // 2026年1月
+  const CAL_END   = { year: 2028, month: 11 }; // 2028年12月
+
   const prevMonth = useCallback(() => {
+    if (currentYear === CAL_START.year && currentMonth === CAL_START.month) return;
     if (currentMonth === 0) {
       setCurrentMonth(11);
       setCurrentYear((y) => y - 1);
     } else {
       setCurrentMonth((m) => m - 1);
     }
-  }, [currentMonth]);
+  }, [currentMonth, currentYear]);
 
   const nextMonth = useCallback(() => {
+    if (currentYear === CAL_END.year && currentMonth === CAL_END.month) return;
     if (currentMonth === 11) {
       setCurrentMonth(0);
       setCurrentYear((y) => y + 1);
     } else {
       setCurrentMonth((m) => m + 1);
     }
-  }, [currentMonth]);
+  }, [currentMonth, currentYear]);
+
+  const showAppAlert = useCallback((title, message) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n${message}`);
+    } else {
+      Alert.alert(title, message, [{ text: 'OK' }]);
+    }
+  }, []);
 
   const showAlert1 = useCallback(() => {
-    Alert.alert(
-      'リマインダー',
-      '飲み忘れてますよ。\n今日分の服薬を記録しましょう。',
-      [{ text: 'OK' }]
-    );
-  }, []);
+    showAppAlert('リマインダー', '飲み忘れてますよ。\n今日分の服薬を記録しましょう。');
+  }, [showAppAlert]);
 
   const showAlert2 = useCallback(() => {
-    Alert.alert(
-      'お知らせ',
-      '薬が明日なくなります。補充してください。',
-      [{ text: 'OK' }]
-    );
-  }, []);
+    showAppAlert('お知らせ', 'セットされた薬が残り１錠です');
+  }, [showAppAlert]);
 
   const calendarDays = getCalendarDays(currentYear, currentMonth);
-  const { width } = useWindowDimensions();
-  const cellSize = Math.min(44, (width - 32 - 6 * 6) / 7);
 
   if (!loaded) {
     return (
@@ -202,10 +210,26 @@ export default function App() {
               ]}
             />
           </View>
-          <Text style={styles.grandchildTime}>
-            孫と遊べる時間 13年と4ヶ月
-          </Text>
+          <TextInput
+            style={styles.grandchildTime}
+            value={motivationLabel}
+            onChangeText={(text) => {
+              setMotivationLabel(text);
+              AsyncStorage.setItem(LABEL_KEY, text).catch(() => {});
+            }}
+            placeholder="ここに目標を入力…"
+            placeholderTextColor={TEXT_MUTED}
+          />
         </View>
+
+        {/* 未服用バナー */}
+        {!todayTaken && (
+          <View style={styles.reminderBanner}>
+            <Text style={styles.reminderText}>
+              本日{todayDisplay}はまだ薬を飲んでいません
+            </Text>
+          </View>
+        )}
 
         {/* 中央：カレンダー */}
         <View style={styles.calendarCard}>
@@ -220,48 +244,48 @@ export default function App() {
               <Text style={styles.navBtnText}>›</Text>
             </TouchableOpacity>
           </View>
-          <View style={[styles.weekdayRow, { gap: 6 }]}>
+          <View style={styles.weekdayRow}>
             {WEEKDAYS.map((w) => (
-              <Text key={w} style={[styles.weekday, { width: cellSize }]}>
-                {w}
-              </Text>
+              <View key={w} style={styles.weekdaySlot}>
+                <Text style={styles.weekday}>{w}</Text>
+              </View>
             ))}
           </View>
           <View style={styles.daysGrid}>
             {calendarDays.map((cell, index) => {
               if (!cell.date) {
-                return <View key={`empty-${index}`} style={[styles.cell, { width: cellSize, height: cellSize }]} />;
+                return <View key={`empty-${index}`} style={styles.daySlot} />;
               }
               const key = dateKey(cell.date);
               const isTaken = !!takenDates[key];
               const isToday =
                 key === dateKey(todayStart());
               return (
-                <TouchableOpacity
-                  key={key}
-                  style={[
-                    styles.cell,
-                    styles.cellTouchable,
-                    { width: cellSize, height: cellSize },
-                    isTaken && styles.cellTaken,
-                    !isTaken && styles.cellNotTaken,
-                    isToday && styles.cellToday,
-                  ]}
-                  onPress={() => toggleDay(cell.date)}
-                  activeOpacity={0.7}
-                >
-                  <Text
+                <View key={key} style={styles.daySlot}>
+                  <TouchableOpacity
                     style={[
-                      styles.cellDayText,
-                      isTaken && styles.cellDayTextTaken,
-                      isToday && !isTaken && styles.cellDayTextToday,
+                      styles.cell,
+                      styles.cellTouchable,
+                      isTaken && styles.cellTaken,
+                      !isTaken && styles.cellNotTaken,
+                      isToday && styles.cellToday,
                     ]}
+                    onPress={() => toggleDay(cell.date)}
+                    activeOpacity={0.7}
                   >
-                    {cell.label}
-                  </Text>
-                  {isTaken && <Text style={styles.cellCheck}>✓</Text>}
-                  {!isTaken && <Text style={styles.cellDash}>－</Text>}
-                </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.cellDayText,
+                        isTaken && styles.cellDayTextTaken,
+                        isToday && !isTaken && styles.cellDayTextToday,
+                      ]}
+                    >
+                      {cell.label}
+                    </Text>
+                    {isTaken && <Text style={styles.cellCheck}>✓</Text>}
+                    {!isTaken && <Text style={styles.cellDash}>－</Text>}
+                  </TouchableOpacity>
+                </View>
               );
             })}
           </View>
@@ -287,10 +311,6 @@ export default function App() {
               <Text style={styles.alertBtnText}>アラート2</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.hint}>
-            アラート1: 飲み忘れ通知のサンプル{'\n'}
-            アラート2: 薬の補充リマインドのサンプル
-          </Text>
         </View>
       </ScrollView>
     </View>
@@ -364,6 +384,8 @@ const styles = StyleSheet.create({
     color: TEXT_MUTED,
     fontSize: 14,
     fontWeight: '600',
+    textAlign: 'center',
+    minWidth: 200,
   },
   calendarCard: {
     backgroundColor: BG_CARD,
@@ -397,7 +419,12 @@ const styles = StyleSheet.create({
   },
   weekdayRow: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  weekdaySlot: {
+    width: '14.285714%',
+    alignItems: 'center',
+    paddingVertical: 4,
   },
   weekday: {
     textAlign: 'center',
@@ -408,9 +435,14 @@ const styles = StyleSheet.create({
   daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+  },
+  daySlot: {
+    width: '14.285714%',
+    aspectRatio: 1,
+    padding: 3,
   },
   cell: {
+    flex: 1,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
@@ -491,5 +523,19 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: 'center',
     lineHeight: 16,
+  },
+  reminderBanner: {
+    backgroundColor: '#dc2626',
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  reminderText: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
