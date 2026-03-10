@@ -53,12 +53,11 @@ npx expo start
 
 ```bash
 npm install   # 別PCで初回のみ
-npm run export:web
+npm run build:pages
 ```
 
-`docs` フォルダに静的ファイルが出力されます。この内容をコミットして push すると GitHub Pages が更新されます。
-
-**サブパス（例: ki1015.github.io/medication-tracker/）で公開している場合**: エクスポート後に `docs/index.html` の `<script src="/_expo/...">` を `<script src="/medication-tracker/_expo/...">` のようにリポジトリ名を付けたパスに書き換えてから push してください（でないとページが真っ白になることがあります）。
+`build:pages` はエクスポート後、`_expo` を `expo-assets` にコピーして `index.html` のパスを書き換えます（GitHub Pages の Jekyll は `_` で始まるフォルダを配信しないため、この処理が必要です）。  
+`docs` フォルダの内容をコミットして push すると GitHub Pages が更新されます。
 
 ## 技術スタック
 
