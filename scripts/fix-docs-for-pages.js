@@ -41,3 +41,8 @@ let html = fs.readFileSync(indexPath, 'utf8');
 html = html.replace(/_expo\//g, 'expo-assets/');
 fs.writeFileSync(indexPath, html);
 console.log('docs/index.html のパスを更新しました。');
+
+// .nojekyll を再作成（export:web で削除されるため）
+const nojekyllPath = path.join(docsDir, '.nojekyll');
+fs.writeFileSync(nojekyllPath, '');
+console.log('docs/.nojekyll を再作成しました。');
