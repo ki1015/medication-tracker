@@ -58,6 +58,8 @@ npm run export:web
 
 `docs` フォルダに静的ファイルが出力されます。この内容をコミットして push すると GitHub Pages が更新されます。
 
+**サブパス（例: ki1015.github.io/medication-tracker/）で公開している場合**: エクスポート後に `docs/index.html` の `<script src="/_expo/...">` を `<script src="/medication-tracker/_expo/...">` のようにリポジトリ名を付けたパスに書き換えてから push してください（でないとページが真っ白になることがあります）。
+
 ## 技術スタック
 
 - Expo SDK 54
