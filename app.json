@@ -3,6 +3,7 @@
     "name": "服薬記録",
     "slug": "medication-tracker",
     "version": "1.0.0",
+    "platforms": ["ios", "android", "web"],
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "splash": {
@@ -25,6 +26,7 @@
       "expo-asset"
     ],
     "web": {
+      "bundler": "metro",
       "publicPath": "/medication-tracker/"
     }
   }

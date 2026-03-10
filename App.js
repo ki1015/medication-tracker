@@ -35,16 +35,37 @@ function getInitialTakenDates() {
   return {};
 }
 
-// ストリーク計算：今日から遡って連続で飲んだ日数
+// ストリーク計算：連続で飲んだ日数（過去＋将来の連続分を含む）
+// 今日まだ記録がなくても、昨日まで連続ならその日数は維持（0にしない）
+// 0になるのは「昨日飲まなかった」場合のみ（日付が変わった翌日に0になる）
+// 将来の日付で「飲んだ」にした日も連続していればカウントする
 function calculateStreak(takenDates) {
   const today = dateKey(todayStart());
-  if (!takenDates[today]) return 0;
-  let count = 0;
   let d = new Date(todayStart());
+
+  // 今日の分がまだ記録されていなければ、昨日を終端としてカウント（今日中はストリーク維持）
+  if (!takenDates[today]) {
+    d.setDate(d.getDate() - 1);
+  }
+
+  // 過去方向：今日（または昨日）から遡って連続で「飲んだ」の日数
+  let count = 0;
   while (takenDates[dateKey(d)]) {
     count++;
     d.setDate(d.getDate() - 1);
   }
+
+  // 将来方向：今日の翌日以降、連続で「飲んだ」になっている日を加算
+  let next = new Date(todayStart());
+  if (!takenDates[today]) {
+    next.setDate(next.getDate() - 1); // 昨日から見た「翌日」＝今日
+  }
+  next.setDate(next.getDate() + 1);
+  while (takenDates[dateKey(next)]) {
+    count++;
+    next.setDate(next.getDate() + 1);
+  }
+
   return count;
 }
 
@@ -124,7 +145,6 @@ export default function App() {
   const toggleDay = useCallback(
     (date) => {
       if (!date) return;
-      if (date > todayStart()) return;
       const key = dateKey(date);
       const next = { ...takenDates };
       if (next[key]) {

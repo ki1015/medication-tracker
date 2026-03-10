@@ -9,6 +9,10 @@
 - **npm** または **yarn**
 - **iPhone**: 実機で試す場合は **Expo Go** アプリ（App Store で無料）
 
+> **別のPCで clone した場合**  
+> リポジトリには `node_modules` が含まれていないため、そのPCで **必ず `npm install`** を実行してください。  
+> 手順の詳細は **[SETUP_NEW_PC.md](./SETUP_NEW_PC.md)** を参照してください。
+
 ## セットアップと起動
 
 ```bash
@@ -45,8 +49,17 @@ npx expo start
 
 （同じ Wi‑Fi でなくても、Tunnel なら URL 共有で試せます）
 
+## GitHub Pages 用に Web をビルドする場合
+
+```bash
+npm install   # 別PCで初回のみ
+npm run export:web
+```
+
+`docs` フォルダに静的ファイルが出力されます。この内容をコミットして push すると GitHub Pages が更新されます。
+
 ## 技術スタック
 
-- Expo SDK 52
+- Expo SDK 54
 - React Native
 - AsyncStorage（記録の永続化）
