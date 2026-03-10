@@ -36,9 +36,14 @@ if (fs.existsSync(destDir)) {
 copyRecursive(srcDir, destDir);
 console.log('docs/_expo → docs/expo-assets をコピーしました。');
 
-// index.html の script src を _expo → expo-assets に変更
+// index.html の script src を _expo → /medication-tracker/expo-assets に変更（GitHub Pages のサブパス対応）
+const appJsonPath = path.join(__dirname, '..', 'app.json');
+const slug = JSON.parse(fs.readFileSync(appJsonPath, 'utf8')).expo.slug || 'medication-tracker';
+const basePath = `/${slug}/`;
 let html = fs.readFileSync(indexPath, 'utf8');
-html = html.replace(/_expo\//g, 'expo-assets/');
+html = html.replace(/_expo\//g, `${basePath}expo-assets/`);
+// 既に expo-assets になっているがベースパスがない場合（再実行時など）も修正
+html = html.replace(/(src=")\/expo-assets\//g, `$1${basePath}expo-assets/`);
 fs.writeFileSync(indexPath, html);
 console.log('docs/index.html のパスを更新しました。');
 
